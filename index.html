@@ -25,12 +25,15 @@
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); /* Sombra intensa */
             overflow: hidden;
             border: 1px solid #333;
+            display: flex; /* Para controlar el contenido de las pestañas */
+            flex-direction: column;
         }
         /* LOGO Y ENCABEZADO */
         .header {
             background-color: #2a2a2a; /* Oscuro para el encabezado */
             color: white;
             padding: 20px;
+            position: relative;
         }
         .header-top {
             display: flex;
@@ -45,6 +48,12 @@
         }
         .header-text {
             flex-grow: 1;
+        }
+        .notification-icon {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: #ccc;
         }
 
         /* CAJA DE BALANCE (Color de riqueza) */
@@ -99,6 +108,14 @@
         .btn-danger:hover {
             background-color: #dc2626;
         }
+        .btn-secondary { /* Nuevo estilo para botones de acción secundarios */
+            background-color: #3b82f6; /* Azul */
+            color: white;
+            box-shadow: 0 4px #2563eb;
+        }
+        .btn-secondary:hover {
+            background-color: #2563eb;
+        }
         
         /* NAVEGACIÓN */
         .nav-bar {
@@ -106,6 +123,7 @@
             justify-content: space-around;
             padding: 10px 0;
             border-top: 1px solid #333;
+            background-color: #1a1a1a; /* Fondo de la barra de navegación */
         }
         .nav-item {
             display: flex;
@@ -113,6 +131,9 @@
             align-items: center;
             color: #6b7280;
             font-size: 0.75rem;
+            flex: 1; /* Para que ocupen el mismo espacio */
+            cursor: pointer;
+            padding: 5px 0;
         }
         .nav-item.active {
             color: #00d1b2; /* Acento Teal para activo */
@@ -135,6 +156,94 @@
         .overlay {
             background: rgba(0, 0, 0, 0.7); /* Overlay más oscuro */
         }
+        /* Animación para el indicador "En tiempo real" */
+        @keyframes pulse-red {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .animate-pulse {
+            animation: pulse-red 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* Contenido de las pestañas */
+        .tab-content {
+            flex-grow: 1; /* Para que el contenido ocupe el espacio restante */
+            overflow-y: auto; /* Permite scroll dentro del contenido si es largo */
+            padding: 20px;
+            display: none; /* Por defecto oculto */
+        }
+        .tab-content.active {
+            display: block; /* Muestra la pestaña activa */
+        }
+
+        /* Estilos específicos para la pestaña "Equipo" */
+        .team-summary-card {
+            background-color: #2a2a2a;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-around;
+            text-align: center;
+            border: 1px solid #333;
+        }
+        .team-summary-item p:first-child {
+            color: #gray-400;
+            font-size: 0.8rem;
+        }
+        .team-summary-item p:last-child {
+            color: #00d1b2;
+            font-size: 1.2rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+
+        .referral-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #2a2a2a;
+            color: #e0e0e0;
+        }
+        .referral-list-item:last-child {
+            border-bottom: none;
+        }
+        .referral-details {
+            display: flex;
+            flex-direction: column;
+            flex-grow: 1;
+        }
+        .referral-details .date {
+            font-size: 0.75rem;
+            color: #777;
+        }
+        .referral-amount {
+            font-size: 1.1rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        .referral-amount.positive {
+            color: #10b981; /* Verde */
+        }
+        .referral-amount.negative {
+            color: #ef4444; /* Rojo */
+        }
+        .referral-amount .percentage {
+            font-size: 0.8rem;
+            margin-left: 8px;
+            padding: 3px 6px;
+            border-radius: 5px;
+        }
+        .referral-amount .percentage.positive {
+            background-color: rgba(16, 185, 129, 0.2); /* Verde semitransparente */
+            color: #10b981;
+        }
+        .referral-amount .percentage.negative {
+            background-color: rgba(239, 68, 68, 0.2); /* Rojo semitransparente */
+            color: #ef4444;
+        }
     </style>
     <script>
         // Variables globales para la simulación
@@ -142,9 +251,17 @@
         let investment = 100.00; // Total invertido por el usuario
         let tasksCompleted = 0;
         
+        // Nuevas métricas simuladas (ILUSIÓN DE GANANCIA)
+        let liveProfitToday = 0.00; // Gana constantemente
+        let liveTotalEarnings = 15.50; // Empieza con una cantidad para credibilidad
+        let referredUsers = 5; 
+        let isProfitSimulationRunning = false; // Flag para controlar la simulación
+        let teamCommission = 25.75; // Saldo inicial de comisión de equipo
+
         // Mensajes de advertencia
         const WARNING_MESSAGE = "🚨 ¡ALERTA DE FRAUDE! 🚨\n\nEste es un simulador. La aplicación real Zumkets, y otras similares, operan con un esquema piramidal. ¡Cuidado con el dinero fácil!\n\nContinúa para ver el 'Enganche'.";
         const DEPOSIT_SUCCESS = (amount) => `💰 ¡Recarga Exitosa! Has depositado $${amount.toFixed(2)}.\n\nTu saldo total es ahora de $${balance.toFixed(2)}. ¡Te han enganchado aún más!`;
+        const INVITE_SUCCESS = (code) => `✉️ ¡Invitación Enviada! Comparte este código: ${code}.\\n\\nCada nuevo miembro aumenta tu potencial de 'ganancias' en el equipo. ¡Así funciona la pirámide!`;
         
         const VIP_TIERS = [
             { level: 1, required: 100, task_commission: 2.00 }, // $2.00 commission
@@ -153,6 +270,16 @@
         ];
 
         let currentVIP = VIP_TIERS[0]; 
+
+        // Datos de operaciones simuladas para la pestaña "Equipo"
+        const referralGains = [
+            { date: '2025-09-17 01:26:07', type: 'Comisión Nivel 1', amount: 0.01, percentage: 0.12, status: 'positive' },
+            { date: '2025-09-17 01:24:48', type: 'Comisión Nivel 2', amount: 0.03, percentage: 0.31, status: 'positive' },
+            { date: '2025-09-16 22:42:04', type: 'Bono de Inversión', amount: 502.97, percentage: -94.90, status: 'negative', description: '¡Ups! Una inversión fallida... ¡Necesitas más!' },
+            { date: '2025-09-15 22:59:34', type: 'Comisión Nivel 1', amount: 28.21, percentage: 4.62, status: 'positive' },
+            { date: '2025-09-15 22:00:36', type: 'Comisión Nivel 3', amount: 36.66, percentage: 6.11, status: 'positive' },
+        ];
+
 
         /**
          * Actualiza el nivel VIP y la UI asociada (comisión, mensaje de fallo).
@@ -171,6 +298,9 @@
             document.getElementById('vip-info').textContent = `Nivel Actual: VIP-${currentVIP.level} (Inversión Total: $${investment.toFixed(2)})`;
             document.getElementById('task-commission').textContent = `Comisión por tarea: ${currentVIP.task_commission.toFixed(2)} USD`;
             document.getElementById('task-title').textContent = `Tarea: Optimización de Pedidos (Nivel ${currentVIP.level})`;
+            if (document.getElementById('my-vip-level')) {
+                document.getElementById('my-vip-level').textContent = currentVIP.level;
+            }
 
             // 2. Genera el mensaje de fallo dinámico (simulando que el fraude exige más)
             let failureMessageText = "";
@@ -189,6 +319,42 @@
             document.getElementById('withdraw-failure-message').value = failureMessageText;
         }
 
+        /**
+         * Simula la subida constante de ganancias y referidos, un truco psicológico del fraude.
+         */
+        function startProfitSimulation() {
+            if (isProfitSimulationRunning) return;
+            isProfitSimulationRunning = true;
+
+            const updateDisplays = () => {
+                // Ganancia de Hoy (Incremento lento simulado)
+                liveProfitToday += 0.00015 * currentVIP.level; 
+                document.getElementById('my-today-profit').textContent = liveProfitToday.toFixed(4); // ID corregido
+
+                // Ganancia Total (Incremento rápido simulado de "otras fuentes")
+                liveTotalEarnings += 0.00035 * currentVIP.level;
+                document.getElementById('my-total-profit').textContent = liveTotalEarnings.toFixed(4); // ID corregido
+
+                // Actualizar usuarios referidos (ocasionalmente para generar confianza)
+                if (Math.random() < 0.005) { // 0.5% chance per tick
+                    referredUsers++;
+                    document.getElementById('referred-users').textContent = referredUsers;
+                }
+                // Simular incremento en la comisión del equipo
+                teamCommission += (Math.random() * 0.01); // Pequeños incrementos
+                document.getElementById('team-commission-display').textContent = teamCommission.toFixed(2);
+            };
+            
+            // Ejecutar la simulación cada 100ms
+            const intervalId = setInterval(updateDisplays, 100);
+
+            // Detener la simulación después de 10 segundos por rendimiento y para simular "picos"
+            setTimeout(() => {
+                clearInterval(intervalId);
+                isProfitSimulationRunning = false;
+                console.log("Simulación de ganancias en vivo detenida.");
+            }, 10000); 
+        }
 
         /**
          * Inicializa la aplicación, actualizando el balance inicial y mostrando el mensaje de alerta.
@@ -198,6 +364,17 @@
             document.getElementById('balance-display').textContent = balance.toFixed(2);
             document.getElementById('task-info').textContent = `Tareas diarias restantes: ${3 - tasksCompleted}`;
             
+            // Inicializar métricas simuladas (IDs corregidos aquí)
+            document.getElementById('my-today-profit').textContent = liveProfitToday.toFixed(4);
+            document.getElementById('my-total-profit').textContent = liveTotalEarnings.toFixed(4);
+            document.getElementById('referred-users').textContent = referredUsers;
+            document.getElementById('team-commission-display').textContent = teamCommission.toFixed(2);
+
+            renderReferralList(); // Renderizar lista de referidos
+
+            // Iniciar la simulación de ganancias en vivo
+            startProfitSimulation(); 
+
             // Mostrar mensaje de alerta inicial
             showMessage(WARNING_MESSAGE, 'Continuar');
         }
@@ -218,6 +395,9 @@
                     document.getElementById('task-button').disabled = true;
                     document.getElementById('task-button').textContent = 'Tareas de hoy completadas';
                 }
+                
+                // Reiniciar la simulación para que se vea un pico de actividad
+                startProfitSimulation();
 
                 showMessage(`✅ Tarea Exitosa. Su balance ha aumentado $${commission.toFixed(2)}.\n\nEste es el 'Enganche' que usan para que confíes. ¡No inviertas más!`, 'Aceptar');
             }
@@ -243,6 +423,9 @@
             updateVIPTier(); // Comprueba si el nuevo depósito desbloquea un nivel VIP
             document.getElementById('balance-display').textContent = balance.toFixed(2);
             
+            // Reiniciar la simulación para simular un pico de actividad
+            startProfitSimulation();
+            
             // Muestra el mensaje de éxito
             showMessage(DEPOSIT_SUCCESS(amount), 'Genial');
         }
@@ -256,6 +439,17 @@
             const failureMessage = document.getElementById('withdraw-failure-message').value;
             showMessage(failureMessage, 'Entendido');
         }
+
+        /**
+         * Simula el envío de una invitación, generando un código falso.
+         */
+        function inviteMembers() {
+            const referralCode = 'ZUMKETS' + Math.floor(1000 + Math.random() * 9000); // Código de 4 dígitos
+            showMessage(INVITE_SUCCESS(referralCode), 'Compartir');
+            referredUsers++; // Simula un nuevo referido
+            document.getElementById('referred-users').textContent = referredUsers;
+        }
+
 
         /**
          * Muestra un cuadro de mensaje personalizado (simulando alert/confirm)
@@ -277,100 +471,211 @@
             document.getElementById('overlay').style.display = 'none';
         }
 
+        /**
+         * Cambia la pestaña activa en la interfaz.
+         * @param {string} tabId - El ID de la pestaña a activar ('home', 'team', 'me').
+         */
+        function changeTab(tabId) {
+            // Ocultar todos los contenidos de pestaña
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            // Remover 'active' de todos los elementos de navegación
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.classList.remove('active');
+            });
+
+            // Mostrar el contenido de la pestaña seleccionada
+            document.getElementById(tabId + '-content').classList.add('active');
+            // Activar el elemento de navegación correspondiente
+            document.querySelector(`.nav-item[data-tab='${tabId}']`).classList.add('active');
+        }
+
+        /**
+         * Renderiza la lista de ganancias por referidos.
+         */
+        function renderReferralList() {
+            const listContainer = document.getElementById('referral-list');
+            listContainer.innerHTML = ''; // Limpiar lista existente
+
+            referralGains.forEach(gain => {
+                const listItem = document.createElement('div');
+                listItem.classList.add('referral-list-item');
+                listItem.innerHTML = `
+                    <div class="referral-details">
+                        <span class="font-medium">${gain.type}</span>
+                        <span class="date">${gain.date}</span>
+                        ${gain.description ? `<span class="text-xs text-red-500">${gain.description}</span>` : ''}
+                    </div>
+                    <div class="referral-amount ${gain.status === 'positive' ? 'positive' : 'negative'}">
+                        <span>${gain.status === 'positive' ? '+' : '-'} ${gain.amount.toFixed(2)}</span>
+                        <span class="percentage ${gain.status === 'positive' ? 'positive' : 'negative'}">${gain.percentage.toFixed(2)}%</span>
+                    </div>
+                `;
+                listContainer.appendChild(listItem);
+            });
+        }
+
+
         // Iniciar la app cuando la ventana cargue
-        window.onload = initializeApp;
+        window.onload = () => {
+            initializeApp();
+            changeTab('home'); // Asegúrate de que la pestaña de inicio se muestre por defecto al cargar
+        };
     </script>
 </head>
 <body>
-    <!-- Campo oculto para almacenar el mensaje de fallo dinámico -->
-    <input type="hidden" id="withdraw-failure-message" value="">
+    
 
-    <!-- Overlay y Mensaje Box -->
-    <div id="overlay" class="overlay" onclick="hideMessage()"></div>
+<input type="hidden" id="withdraw-failure-message" value="">
+
+    
+
+<div id="overlay" class="overlay" onclick="hideMessage()"></div>
     <div id="alert-box" class="message-box">
         <p id="alert-message" class="text-gray-800 font-medium whitespace-pre-line"></p>
         <button id="alert-button" onclick="hideMessage()" class="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600">Aceptar</button>
     </div>
 
-    <!-- App Shell (Cuerpo de la Aplicación Falsa) -->
-    <div class="app-shell">
+    
+
+<div class="app-shell">
         
-        <!-- HEADER / BALANCE -->
-        <div class="header">
+        
+
+<div class="header">
             <div class="header-top">
-                <img src="https://i.postimg.cc/027p8MRG/34ec93b48ea24b79a3daf754216017de.png" alt="Zumkets Logo" class="logo">
+                <img src="https://i.postimg.cc/027p8MRG/34ec93b4ea24b79a3daf754216017de.png" alt="Zumkets Logo" class="logo">
                 <div class="header-text">
                     <h1 class="text-xl font-bold text-white">ZUMKETS FINANCE</h1>
                 </div>
+                <svg class="notification-icon w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
             </div>
+            
             <p id="vip-info" class="text-sm text-gray-400">Nivel Actual: VIP-1 (Inversión: $100.00)</p>
-
             <div class="balance-box">
                 <p class="text-sm text-white opacity-75">Saldo Total (USD)</p>
                 <p id="balance-display" class="balance-value"></p>
             </div>
         </div>
 
-        <!-- CONTENIDO PRINCIPAL / TAREAS -->
-        <div class="p-4">
+        
+
+<div id="home-content" class="tab-content active">
             <h2 class="text-lg font-semibold text-gray-100 mb-4">Misiones Diarias Disponibles</h2>
 
-            <!-- Tarea Simulada -->
-            <div class="task-card">
+            
+
+<div class="task-card">
                 <p id="task-title" class="font-semibold text-blue-800">Tarea: Optimización de Pedidos (Nivel 1)</p>
                 <p id="task-commission" class="text-sm text-gray-400">Comisión por tarea: 2.00 USD</p>
                 <p id="task-info" class="text-xs text-gray-500 mt-2"></p>
             </div>
 
-            <!-- Botón de Acción -->
-            <button id="task-button" onclick="completeTask()" class="btn-action btn-primary mt-2">
+            
+
+<button id="task-button" onclick="completeTask()" class="btn-action btn-primary mt-2">
                 Realizar Tarea y Ganar Comisión
             </button>
             
             <p class="text-center text-xs text-gray-500 mt-3">Recuerda completar tus tareas diariamente antes de la hora límite.</p>
-
-        </div>
         
-        <!-- SECCIÓN DE DEPÓSITO -->
-        <div class="p-4 border-t border-gray-800 mt-4">
-            <h2 class="text-lg font-semibold text-gray-100 mb-2">Recarga de Saldo (Aumentar Inversión)</h2>
-            <p class="text-sm text-gray-500 mb-3">
-                Para desbloquear un nivel VIP superior, debe aumentar su inversión.
-            </p>
-            <div class="flex space-x-2">
-                <input type="number" id="deposit-amount" placeholder="Monto a depositar (USD)" class="flex-grow p-3 border border-gray-700 bg-gray-900 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500" min="10" value="100">
-                <button onclick="simulateDeposit()" class="px-5 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition duration-150 flex-shrink-0">
-                    Depositar
+            
+
+<div class="p-4 -mx-4 border-t border-gray-800 mt-4">
+                <h2 class="text-lg font-semibold text-gray-100 mb-2">Recarga de Saldo (Aumentar Inversión)</h2>
+                <p class="text-sm text-gray-500 mb-3">
+                    Para desbloquear un nivel VIP superior, debe aumentar su inversión.
+                </p>
+                <div class="flex space-x-2">
+                    <input type="number" id="deposit-amount" placeholder="Monto a depositar (USD)" class="flex-grow p-3 border border-gray-700 bg-gray-900 text-white rounded-lg focus:ring-blue-500 focus:border-blue-500" min="10" value="100">
+                    <button onclick="simulateDeposit()" class="px-5 py-3 bg-blue-500 text-white rounded-lg font-semibold hover:bg-blue-600 transition duration-150 flex-shrink-0">
+                        Depositar
+                    </button>
+                </div>
+            </div>
+            
+            
+
+<div class="p-4 -mx-4 border-t border-gray-800 mt-4">
+                <h2 class="text-lg font-semibold text-gray-100 mb-2">Gestión de Fondos</h2>
+                <p class="text-sm text-red-400 font-medium mb-3">
+                    ⚠️ **ADVERTENCIA:** Este botón simula el momento del fraude. ¡Pruébalo!
+                </p>
+                <button onclick="attemptWithdraw()" class="btn-action btn-danger">
+                    Solicitar Retiro de Fondos
                 </button>
             </div>
         </div>
+
         
-        <!-- SECCIÓN DE RETIRO Y ADVERTENCIA -->
-        <div class="p-4 border-t border-gray-800 mt-4">
-            <h2 class="text-lg font-semibold text-gray-100 mb-2">Gestión de Fondos</h2>
-            <p class="text-sm text-red-400 font-medium mb-3">
-                ⚠️ **ADVERTENCIA:** Este botón simula el momento del fraude. ¡Pruébalo!
-            </p>
-            <button onclick="attemptWithdraw()" class="btn-action btn-danger">
-                Solicitar Retiro de Fondos
+
+<div id="team-content" class="tab-content">
+            <h2 class="text-xl font-bold text-teal-400 mb-4">Mi Equipo de Ganancias</h2>
+
+            
+
+<div class="team-summary-card">
+                <div class="team-summary-item">
+                    <p>Comisión de Equipo</p>
+                    <p id="team-commission-display">25.75</p>
+                </div>
+                <div class="team-summary-item">
+                    <p>Total Referidos</p>
+                    <p id="referred-users">5</p>
+                </div>
+            </div>
+
+            
+
+<button onclick="inviteMembers()" class="btn-action btn-secondary mt-2 mb-4">
+                Invitar Nuevos Miembros (¡Expandir la Pirámide!)
             </button>
+            <p class="text-center text-xs text-gray-500 mb-4">Comparte tu enlace para obtener comisiones de referidos.</p>
+
+            
+
+<h3 class="text-lg font-semibold text-gray-100 mb-3">Historial de Comisiones</h3>
+            <div id="referral-list" class="flex flex-col space-y-2">
+                
+
+</div>
+            <p class="text-center text-xs text-gray-500 mt-4">Los datos se actualizan en tiempo real (simulado).</p>
         </div>
 
-        <!-- BARRA DE NAVEGACIÓN INFERIOR -->
-        <div class="nav-bar">
-            <div class="nav-item active">
-                <!-- Icono SVG de Home -->
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-10v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1V9M9 21h6"></path></svg>
+        
+
+<div id="me-content" class="tab-content">
+            <h2 class="text-lg font-semibold text-gray-100 mb-4">Mi Perfil (Simulado)</h2>
+            <div class="p-4 bg-gray-900 rounded-lg border border-gray-700">
+                <p class="mb-2"><span class="font-medium text-gray-400">ID de Usuario:</span> <span class="text-teal-400">ZUMKETS001</span></p>
+                <p class="mb-2"><span class="font-medium text-gray-400">Correo Electrónico:</span> <span class="text-teal-400">usuario@ejemplo.com</span></p>
+                <p class="mb-2"><span class="font-medium text-gray-400">Nivel VIP:</span> <span class="text-teal-400">VIP-<span id="my-vip-level">1</span></span></p>
+                <p class="mb-2"><span class="font-medium text-gray-400">Ganancia de Hoy:</span> <span class="text-green-400" id="my-today-profit">0.00</span></p>
+                <p class="mb-2"><span class="font-medium text-gray-400">Ganancia Total:</span> <span class="text-green-400" id="my-total-profit">15.50</span></p>
+                <p class="text-sm text-gray-500 mt-4">En una app real, aquí habría más opciones de configuración y seguridad... pero eso no les interesa.</p>
+            </div>
+        </div>
+
+        
+
+<div class="nav-bar">
+            <div class="nav-item active" data-tab="home" onclick="changeTab('home')">
+                
+
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-10v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1V9M9 21h6"></path></svg>
                 <span>Inicio</span>
             </div>
-            <div class="nav-item">
-                <!-- Icono SVG de Referidos -->
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20v-2c0-.656-.126-1.283-.356-1.857M9 20H4v-2a3 3 0 015-2.236M9 20v-2a3 3 0 00-5.356-1.857m14.406-8.858a4 4 0 10-7.85-1.95M9 20h9a2 2 0 002-2v-3"></path></svg>
+            <div class="nav-item" data-tab="team" onclick="changeTab('team')">
+                
+
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20v-2c0-.656-.126-1.283-.356-1.857M9 20H4v-2a3 3 0 015-2.236M9 20v-2a3 3 0 00-5.356-1.857m14.406-8.858a4 4 0 10-7.85-1.95M9 20h9a2 2 0 002-2v-3"></path></svg>
                 <span>Equipo</span>
             </div>
-            <div class="nav-item">
-                <!-- Icono SVG de Perfil -->
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <div class="nav-item" data-tab="me" onclick="changeTab('me')">
+                
+
+<svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                 <span>Mí</span>
             </div>
         </div>
